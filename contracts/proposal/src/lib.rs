@@ -6,10 +6,10 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult};
 use error::ContractError;
-use msg::InstantiateMsg;
+use msg::{ExecMsg, InstantiateMsg};
 
 mod contract;
-mod error;
+pub mod error;
 pub mod msg;
 pub mod state;
 
@@ -27,6 +27,11 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, ContractError> {
-    contract::reply(deps, env, reply)
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecMsg,
+) -> Result<Response, ContractError> {
+    contract::execute(deps, env, info, msg)
 }

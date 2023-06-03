@@ -19,6 +19,7 @@ schemars =  {workspace=true}
 cosmwasm-schema =  {workspace=true}
 cw-utils ={workspace=true}
 proxy = { version = "*", path = "../proxy", features = ["library"]}
+proposal = { version = "*", path = "../proposal", features = ["library"]}
 distribution = { version = "*", path = "../distribution", features = ["library"]}
 common = { version="*", path = "../../common" }
 anyhow = { workspace=true, optional = true }
@@ -28,4 +29,5 @@ cw-multi-test = { workspace=true, optional = true }
 anyhow = {workspace=true}
 cw-multi-test = {workspace=true}
 proxy = { path = "../proxy", features = ["mt"] }
+proposal = { path = "../proposal", features = ["mt"] }
 distribution = { path = "../distribution", features = ["mt"] }
