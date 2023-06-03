@@ -1,0 +1,20 @@
+[package]
+name = "voting-platform"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = ["common", "contracts/*"]
+resolver = "2"
+
+
+[workspace.dependencies]
+serde = "1.0.163"
+cosmwasm-std = "1.2.5"
+cw-storage-plus = "1.0.1"
+schemars = "0.8.12"
+cosmwasm-schema = "1.2.5"
+cw-utils = "1.0.1"
+anyhow = "1.0.71"
+cw-multi-test = "0.16.4"
+thiserror = "1.0.40"
