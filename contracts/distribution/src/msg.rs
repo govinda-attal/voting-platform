@@ -12,5 +12,5 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub enum ExecMsg {
     BuyVoteTokens {},
-    NewMember {},
+    DistributeJoiningFee {},
 }

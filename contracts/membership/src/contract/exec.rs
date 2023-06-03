@@ -121,20 +121,22 @@ pub fn new_member(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
     let proposal_addr = info.sender;
     let proposal_owner = proposal::state::OWNER.query(&deps.querier, proposal_addr.clone())?;
 
-    ensure!(CANDIDATES.has(deps.storage, &proposal_owner), ContractError::NotProposedMember);
+    ensure!(
+        CANDIDATES.has(deps.storage, &proposal_owner),
+        ContractError::NotProposedMember
+    );
 
     CANDIDATES.remove(deps.storage, &proposal_addr);
-        
 
     let config = CONFIG.load(deps.storage)?;
     let membership_contract = env.contract.address.into_string();
-    
+
     let msg = ProxyInstantiateMsg {
         owner: proposal_owner.clone().into_string(),
         distribution_contract: config.distribution_contract.into_string(),
         membership_contract: membership_contract.clone(),
     };
-    
+
     let msg = WasmMsg::Instantiate {
         admin: Some(membership_contract),
         code_id: config.proxy_code_id,
@@ -142,14 +144,14 @@ pub fn new_member(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
         funds: vec![],
         label: format!("{} Proxy", proposal_owner),
     };
-    
+
     let msg = SubMsg::reply_on_success(msg, super::PROXY_INSTANTIATION_REPLY_ID);
-    
+
     let resp = Response::new()
         .add_submessage(msg)
         .add_attribute("action", "new_member")
         .add_attribute("sender", proposal_addr.as_str())
         .add_attribute("owner", proposal_owner.as_str());
-    
+
     Ok(resp)
 }

@@ -78,7 +78,7 @@ pub fn join(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
         msg: to_binary(&mem_msg)?,
         funds: vec![],
     };
-    let dis_msg = DistributionExecMsg::NewMember {};
+    let dis_msg = DistributionExecMsg::DistributeJoiningFee {};
     let dis_msg = WasmMsg::Execute {
         contract_addr: config.distribution_contract.into_string(),
         msg: to_binary(&dis_msg)?,
