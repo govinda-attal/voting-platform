@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use common::keys::VOTE_DENOM;
 use cosmwasm_std::{
-    coins, ensure, to_binary, BankMsg, DepsMut, Env, MessageInfo, Response, WasmMsg,
+    coin, coins, ensure, to_binary, BankMsg, DepsMut, Env, MessageInfo, Response, StdResult,
+    SubMsg, WasmMsg,
 };
 use cw_utils::must_pay;
 
@@ -8,6 +11,8 @@ use common::msg::membership::ExecMsg as MembershipExecMsg;
 use common::msg::membership::{IsMemberResp, QueryMsg::IsMember};
 use distribution::msg::ExecMsg as DistributionExecMsg;
 
+use crate::contract::MEMBER_JOINED_REPLY_ID;
+use crate::state::VOTER_TOKENS;
 use crate::{
     error::ContractError,
     state::{CONFIG, IS_PASSED, OWNER},
@@ -33,7 +38,7 @@ pub fn pass(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 }
 
 pub fn vote(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
-    must_pay(&info, VOTE_DENOM)?;
+    let vote_amount = must_pay(&info, VOTE_DENOM)?;
 
     let sender = info.sender;
     let config = CONFIG.load(deps.storage)?;
@@ -47,6 +52,14 @@ pub fn vote(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     )?;
 
     ensure!(is_member_resp.is_member, ContractError::VoteRejected);
+
+    VOTER_TOKENS.update(deps.storage, &sender, |votes| -> StdResult<_> {
+        let votes = votes.map_or_else(
+            || coin(vote_amount.u128(), VOTE_DENOM),
+            |c| coin((c.amount + vote_amount).u128(), c.denom),
+        );
+        Ok(votes)
+    })?;
 
     let resp = Response::new()
         .add_attribute("action", "vote_member_proposal")
@@ -78,7 +91,19 @@ pub fn join(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
         msg: to_binary(&mem_msg)?,
         funds: vec![],
     };
-    let dis_msg = DistributionExecMsg::DistributeJoiningFee {};
+
+    let mem_msg = SubMsg::reply_on_success(mem_msg, MEMBER_JOINED_REPLY_ID);
+
+    let voter_tokens: HashMap<_, _> = VOTER_TOKENS
+        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+        .into_iter()
+        .map(|votes| -> StdResult<_> {
+            let votes = votes?;
+            Ok((votes.0.to_string(), votes.1))
+        })
+        .collect::<Result<_, _>>()?;
+
+    let dis_msg = DistributionExecMsg::DistributeJoiningFee { voter_tokens };
     let dis_msg = WasmMsg::Execute {
         contract_addr: config.distribution_contract.into_string(),
         msg: to_binary(&dis_msg)?,
@@ -86,7 +111,7 @@ pub fn join(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     };
 
     let resp = Response::new()
-        .add_message(mem_msg)
+        .add_submessage(mem_msg)
         .add_message(dis_msg)
         .add_attribute("action", "join")
         .add_attribute("sender", sender.as_str())

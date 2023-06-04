@@ -6,7 +6,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult};
 use error::ContractError;
-use msg::InstantiateMsg;
+use msg::{ExecMsg, InstantiateMsg, QueryMsg};
 
 mod contract;
 mod error;
@@ -27,6 +27,21 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecMsg,
+) -> Result<Response, ContractError> {
+    contract::execute(deps, env, info, msg)
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, ContractError> {
     contract::reply(deps, env, reply)
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    todo!()
 }

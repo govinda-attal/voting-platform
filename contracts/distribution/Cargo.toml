@@ -21,6 +21,7 @@ cw-utils = {workspace=true}
 common = { version="*", path = "../../common" }
 anyhow = { workspace=true, optional = true }
 cw-multi-test = { workspace=true, optional = true }
+cw2 = { workspace=true}
 
 [dev-dependencies]
 anyhow = {workspace=true}

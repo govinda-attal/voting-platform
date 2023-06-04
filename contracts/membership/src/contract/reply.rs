@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use common::{
     keys::VOTE_DENOM,
     msg::{ProposalMemberData, ProxyMemberData},

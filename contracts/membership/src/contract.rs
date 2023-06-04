@@ -3,6 +3,7 @@ use cosmwasm_std::{
     coin, ensure, to_binary, Addr, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Reply, Response,
     StdResult, SubMsg, Uint128, WasmMsg,
 };
+use cw2::set_contract_version;
 use cw_utils::must_pay;
 
 use crate::{
@@ -32,6 +33,8 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     ensure!(
         msg.initial_members.len() >= 2,
         ContractError::NotEnoughInitialMembers

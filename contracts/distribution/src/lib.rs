@@ -1,11 +1,7 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult};
 use error::ContractError;
 use msg::{ExecMsg, InstantiateMsg};
 
@@ -35,4 +31,9 @@ pub fn execute(
     msg: ExecMsg,
 ) -> Result<Response, ContractError> {
     contract::execute(deps, env, info, msg)
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(_deps: Deps, _env: Env, _msg: Empty) -> StdResult<Binary> {
+    todo!()
 }

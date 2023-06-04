@@ -3,15 +3,19 @@ use cosmwasm_std::{
     ensure, to_binary, Addr, BankMsg, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
     Response, StdResult,
 };
+use cw2::set_contract_version;
 
 mod exec;
 mod reply;
 
 use crate::error::ContractError;
-use crate::msg::{ExecutionMsg, InstantiateMsg};
+use crate::msg::{ExecMsg, InstantiateMsg};
 use crate::state::{Config, CONFIG, OWNER};
 
-const PROPOSE_MEMBER_ID: u64 = 1;
+const PROPOSE_MEMBER_REPLY_ID: u64 = 1;
+
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn instantiate(
     deps: DepsMut,
@@ -19,6 +23,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     let owner = deps.api.addr_validate(&msg.owner)?;
 
     // addresses are trusted as they come from membership contract
@@ -51,9 +57,9 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecutionMsg,
+    msg: ExecMsg,
 ) -> Result<Response, ContractError> {
-    use ExecutionMsg::*;
+    use ExecMsg::*;
 
     match msg {
         ProposeMember { addr } => exec::propose_member(deps, info, addr),
@@ -63,7 +69,7 @@ pub fn execute(
 
 pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, ContractError> {
     match reply.id {
-        PROPOSE_MEMBER_ID => reply::propose_member(reply.result.into_result()),
+        PROPOSE_MEMBER_REPLY_ID => reply::propose_member(reply.result.into_result()),
         id => Err(ContractError::UnrecognizedReplyId(id)),
     }
 }

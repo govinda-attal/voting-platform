@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal, Empty};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, UniqueIndex};

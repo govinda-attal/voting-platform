@@ -22,6 +22,7 @@ common = { version="*", path = "../../common" }
 distribution = { version="*", path = "../distribution", features = ["library"]}
 anyhow = { workspace=true, optional = true }
 cw-multi-test = { workspace=true, optional = true }
+cw2 = { workspace=true}
 
 [dev-dependencies]
 anyhow = {workspace=true}

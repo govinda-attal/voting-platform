@@ -1,8 +1,9 @@
-use cosmwasm_schema::cw_serde;
+use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Coin;
 
 #[cw_serde]
 pub struct InstantiateMsg {
+    pub proposer: String,
     pub proposed_owner: String,
     pub distribution_contract: String,
     pub membership_contract: String,
@@ -15,3 +16,7 @@ pub enum ExecMsg {
     Vote {},
     Join {},
 }
+
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum QueryMsg {}

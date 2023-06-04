@@ -1,3 +1,4 @@
+use common::keys::VOTE_DENOM;
 use common::msg::membership::ExecMsg as MembershipExecMsg;
 use cosmwasm_std::{
     coins, ensure, to_binary, DepsMut, Env, MessageInfo, Response, StdResult, SubMsg, Uint128,
@@ -5,7 +6,7 @@ use cosmwasm_std::{
 };
 use cw_utils::must_pay;
 
-use crate::contract::PROPOSE_MEMBER_ID;
+use crate::contract::PROPOSE_MEMBER_REPLY_ID;
 use crate::error::ContractError;
 use crate::state::{CONFIG, OWNER};
 
@@ -14,6 +15,8 @@ pub fn propose_member(
     info: MessageInfo,
     addr: String,
 ) -> Result<Response, ContractError> {
+    let vote_tokens = must_pay(&info, VOTE_DENOM)?;
+
     let owner = OWNER.load(deps.storage)?;
     ensure!(owner == info.sender, ContractError::Unauthorized);
 
@@ -23,10 +26,10 @@ pub fn propose_member(
     let propose_msg = WasmMsg::Execute {
         contract_addr: config.membership_contract.into_string(),
         msg: to_binary(&propose_msg)?,
-        funds: vec![],
+        funds: coins(vote_tokens.u128(), VOTE_DENOM),
     };
 
-    let propose_msg = SubMsg::reply_on_success(propose_msg, PROPOSE_MEMBER_ID);
+    let propose_msg = SubMsg::reply_on_success(propose_msg, PROPOSE_MEMBER_REPLY_ID);
 
     let resp = Response::new()
         .add_submessage(propose_msg)

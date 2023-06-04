@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Binary, Coin};
 
@@ -12,5 +14,5 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub enum ExecMsg {
     BuyVoteTokens {},
-    DistributeJoiningFee {},
+    DistributeJoiningFee { voter_tokens: HashMap<String, Coin> },
 }

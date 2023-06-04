@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use common::keys::VOTE_DENOM;
 use cosmwasm_std::{
-    coins, ensure, to_binary, Addr, DepsMut, Empty, Env, MessageInfo, Order, Response, SubMsg,
-    Uint128, WasmMsg,
+    coin, coins, ensure, to_binary, Addr, Coin, DepsMut, Empty, Env, MessageInfo, Order, Response,
+    SubMsg, Uint128, WasmMsg,
 };
 
 use cw_utils::must_pay;
@@ -47,6 +49,7 @@ pub fn propose_member(
     let config = CONFIG.load(deps.storage)?;
 
     let inst_msg = ProposalInstantiateMsg {
+        proposer: info.sender.to_string(),
         proposed_owner: addr.to_string(),
         distribution_contract: config.distribution_contract.into_string(),
         membership_contract: membership_contract.clone(),
