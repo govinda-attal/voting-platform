@@ -22,16 +22,20 @@ pub fn withdraw(
     _reply: Result<SubMsgResponse, String>,
 ) -> Result<Response, ContractError> {
     let owner = OWNER.load(deps.storage)?;
-    let total_amount = deps.querier.query_balance(env.contract.address, ATOM)?;
+    let rewards = deps.querier.query_balance(env.contract.address, ATOM)?;
+
+    if rewards.amount.u128() == 0 {
+        return Ok(Response::new());
+    }
 
     let bank_msg = BankMsg::Send {
         to_address: owner.into_string(),
-        amount: vec![total_amount.clone()],
+        amount: vec![rewards.clone()],
     };
 
     let resp = Response::new()
         .add_message(bank_msg)
-        .add_attribute("amount", total_amount.to_string());
+        .add_attribute("amount", rewards.to_string());
 
     Ok(resp)
 }
@@ -45,6 +49,10 @@ pub fn buy_vote_tokens(
     let vote_tokens = deps
         .querier
         .query_balance(env.contract.address, VOTE_DENOM)?;
+
+    if vote_tokens.amount.u128() == 0 {
+        return Ok(Response::new());
+    }
 
     let bank_msg = BankMsg::Send {
         to_address: owner.into_string(),
