@@ -37,10 +37,12 @@ pub fn distribution_instantiated(
     let balance = deps
         .querier
         .query_balance(env.contract.address.to_string(), VOTE_DENOM)?;
+
     let vote_tokens_per_member = coin(
         balance.amount.u128() / initial_members.len() as u128,
         VOTE_DENOM,
     );
+
     let membership_contract = env.contract.address.to_string();
     let msgs: Vec<_> = initial_members
         .into_iter()

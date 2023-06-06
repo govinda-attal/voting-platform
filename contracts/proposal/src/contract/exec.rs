@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use common::keys::VOTE_DENOM;
 use cosmwasm_std::{
-    coin, coins, ensure, to_binary, BankMsg, DepsMut, Env, MessageInfo, Response, StdResult,
+    coin, coins, ensure, to_binary, Addr, BankMsg, DepsMut, Env, MessageInfo, Response, StdResult,
     SubMsg, WasmMsg,
 };
 use cw_utils::must_pay;
 
-use common::msg::membership::ExecMsg as MembershipExecMsg;
-use common::msg::membership::{IsMemberResp, QueryMsg::IsMember};
+use common::msg::membership::{ExecMsg as MembershipExecMsg, OwnerProxyResp};
+use common::msg::membership::{IsMemberResp, QueryMsg::OwnerProxy};
 use distribution::msg::ExecMsg as DistributionExecMsg;
 
 use crate::contract::MEMBER_JOINED_REPLY_ID;
@@ -44,22 +44,33 @@ pub fn vote(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     let config = CONFIG.load(deps.storage)?;
     let owner = OWNER.load(deps.storage)?;
 
-    let is_member_resp: IsMemberResp = deps.querier.query_wasm_smart(
+    let sender_proxy_resp: OwnerProxyResp = deps.querier.query_wasm_smart(
         config.membership_contract,
-        &IsMember {
-            addr: sender.to_string(),
+        &OwnerProxy {
+            owner: sender.to_string(),
         },
     )?;
 
-    ensure!(is_member_resp.is_member, ContractError::VoteRejected);
+    let sender_proxy = Addr::unchecked(sender_proxy_resp.proxy);
 
-    VOTER_TOKENS.update(deps.storage, &sender, |votes| -> StdResult<_> {
+    VOTER_TOKENS.update(deps.storage, &sender_proxy, |votes| -> StdResult<_> {
         let votes = votes.map_or_else(
             || coin(vote_amount.u128(), VOTE_DENOM),
             |c| coin((c.amount + vote_amount).u128(), c.denom),
         );
         Ok(votes)
     })?;
+    let config = CONFIG.load(deps.storage)?;
+
+    let mem_msg = MembershipExecMsg::VoteMemberProposal {
+        voter: owner.to_string(),
+        voter_proxy: sender_proxy.to_string(),
+    };
+    let mem_msg = WasmMsg::Execute {
+        contract_addr: config.membership_contract.into_string(),
+        msg: to_binary(&mem_msg)?,
+        funds: vec![],
+    };
 
     let resp = Response::new()
         .add_attribute("action", "vote_member_proposal")
@@ -85,11 +96,16 @@ pub fn join(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 
     ensure!(sender == owner, ContractError::Unauthorized);
 
+    let mut vote_tokens = deps
+        .querier
+        .query_balance(env.contract.address, VOTE_DENOM)?;
+    vote_tokens.amount -= config.new_member_vote_tokens.amount;
+
     let mem_msg = MembershipExecMsg::NewMember {};
     let mem_msg = WasmMsg::Execute {
         contract_addr: config.membership_contract.into_string(),
         msg: to_binary(&mem_msg)?,
-        funds: vec![],
+        funds: vec![config.new_member_vote_tokens],
     };
 
     let mem_msg = SubMsg::reply_on_success(mem_msg, MEMBER_JOINED_REPLY_ID);
@@ -107,7 +123,7 @@ pub fn join(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     let dis_msg = WasmMsg::Execute {
         contract_addr: config.distribution_contract.into_string(),
         msg: to_binary(&dis_msg)?,
-        funds: coins(fee_paid.u128(), config.joining_fee.denom),
+        funds: vec![vote_tokens, coin(fee_paid.u128(), config.joining_fee.denom)],
     };
 
     let resp = Response::new()

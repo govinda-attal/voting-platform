@@ -1,10 +1,10 @@
 use anyhow::{Ok, Result as AnyResult};
-use common::msg::{ProposalMemberData, ProxyMemberData};
+use common::msg::{ProposalMemberData, ProxyMemberData, WithdrawableResp};
 use cosmwasm_std::{from_binary, Addr, Coin, Decimal};
 use cw_multi_test::{App, ContractWrapper, Executor};
 use cw_utils::parse_execute_response_data;
 
-use crate::msg::{ExecMsg, InstantiateMsg};
+use crate::msg::{ExecMsg, InstantiateMsg, QueryMsg};
 use crate::{execute, instantiate, query, reply};
 
 #[cfg(test)]
@@ -92,15 +92,14 @@ impl Contract {
     pub fn propose_member(
         &self,
         app: &mut App,
-        sender: &str,
+        sender: &Addr,
         funds: &[Coin],
-        candidate: &str,
+        candidate: &Addr,
     ) -> AnyResult<Option<ProposalMemberData>> {
         let msg = ExecMsg::ProposeMember {
             addr: candidate.to_string(),
         };
-        let resp =
-            app.execute_contract(Addr::unchecked(sender), self.addr().clone(), &msg, funds)?;
+        let resp = app.execute_contract(sender.clone(), self.addr().clone(), &msg, funds)?;
         resp.data
             .map(|data| parse_execute_response_data(&data))
             .transpose()?
@@ -111,9 +110,27 @@ impl Contract {
     }
 
     #[track_caller]
-    pub fn buy_vote_tokens<'a>(&self, app: &mut App, sender: &str) -> AnyResult<()> {
+    pub fn buy_vote_tokens<'a>(&self, app: &mut App, sender: &Addr) -> AnyResult<()> {
         let msg = ExecMsg::BuyVoteTokens {};
-        app.execute_contract(Addr::unchecked(sender), self.addr().clone(), &msg, &[])?;
+        app.execute_contract(sender.clone(), self.addr().clone(), &msg, &[])?;
+        Ok(())
+    }
+
+    #[track_caller]
+    pub fn withdrawable(&self, app: &App) -> AnyResult<WithdrawableResp> {
+        app.wrap()
+            .query_wasm_smart(self.0.clone(), &QueryMsg::Withdrawable {})
+            .map_err(Into::into)
+    }
+
+    #[track_caller]
+    pub fn withdraw(&self, app: &mut App, sender: &Addr) -> AnyResult<()> {
+        app.execute_contract(
+            Addr::unchecked(sender),
+            self.0.clone(),
+            &ExecMsg::Withdraw {},
+            &[],
+        )?;
         Ok(())
     }
 }

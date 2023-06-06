@@ -65,6 +65,7 @@ pub fn instantiate(
         proxy_code_id: msg.proxy_code_id,
         distribution_contract: Addr::unchecked(""), // will get it in reply!
         joining_fee: msg.joining_fee,
+        new_member_vote_tokens: msg.new_member_vote_tokens.clone(),
     };
 
     CONFIG.save(deps.storage, &config)?;
@@ -107,7 +108,9 @@ pub fn execute(
         // this is called by proxy contract
         ProposeMember { addr } => exec::propose_member(deps, env, info, addr),
         // this is called by proposal contract
-        VoteMemberProposal {} => exec::vote_member_proposal(deps, env, info),
+        VoteMemberProposal { voter, voter_proxy } => {
+            exec::vote_member_proposal(deps, env, info, voter, voter_proxy)
+        }
         NewMember {} => exec::new_member(deps, env, info),
     }
 }
@@ -133,6 +136,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     use QueryMsg::*;
 
     match msg {
-        IsMember { addr } => query::is_member(deps, addr).and_then(|resp| to_binary(&resp)),
+        IsMember { addr } => to_binary(&query::is_member(deps, addr)?),
+        IsProposedMember { addr } => to_binary(&query::is_proposed_member(deps, addr)?),
+        OwnerProxy { owner } => to_binary(&query::owner_proxy(deps, owner)?),
     }
 }

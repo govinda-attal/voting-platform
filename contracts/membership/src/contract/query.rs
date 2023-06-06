@@ -1,10 +1,35 @@
-use cosmwasm_std::{Addr, Deps, StdResult};
-
-use crate::state::members;
-use common::msg::membership::IsMemberResp;
+use crate::{error::ContractError, state::{members, CANDIDATES}};
+use common::msg::membership::{IsMemberResp, OwnerProxyResp, IsProposedMemberResp};
+use cosmwasm_std::{Addr, Deps, Order, StdError, StdResult};
+use cw_storage_plus::Prefixer;
+use std::str;
 
 pub fn is_member(deps: Deps, addr: String) -> StdResult<IsMemberResp> {
-    let is_member = members().has(deps.storage, &Addr::unchecked(addr));
+    let addr = deps.api.addr_validate(&addr)?;
+    let ok = members().has(deps.storage, &addr);
 
-    Ok(IsMemberResp { is_member })
+    Ok(IsMemberResp { ok })
+}
+
+pub fn is_proposed_member(deps: Deps, addr: String) -> StdResult<IsProposedMemberResp> {
+    let addr = deps.api.addr_validate(&addr)?;
+    let ok = CANDIDATES.has(deps.storage, &addr);
+
+    Ok(IsProposedMemberResp { ok })
+}
+
+pub fn owner_proxy(deps: Deps, owner: String) -> StdResult<OwnerProxyResp> {
+    let owner = deps.api.addr_validate(&owner)?;
+    let (pk, sk) = members()
+        .idx
+        .owner
+        .item(deps.storage, owner.clone())?
+        .ok_or(StdError::generic_err("not an owner"))?;
+
+    let pk = str::from_utf8(&pk).unwrap();
+
+    Ok(OwnerProxyResp {
+        owner: owner.into(),
+        proxy: pk.to_string(),
+    })
 }

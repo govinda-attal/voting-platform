@@ -26,6 +26,7 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
+    let proposer = deps.api.addr_validate(&msg.proposer)?;
     let owner = deps.api.addr_validate(&msg.proposed_owner)?;
     let vote_amount = must_pay(&info, VOTE_DENOM)?;
 
@@ -41,12 +42,13 @@ pub fn instantiate(
             distribution_contract,
             membership_contract,
             joining_fee: msg.joining_fee,
+            new_member_vote_tokens: msg.new_member_vote_tokens,
         },
     )?;
 
     VOTER_TOKENS.save(
         deps.storage,
-        &info.sender,
+        &proposer,
         &coin(vote_amount.u128(), VOTE_DENOM),
     )?;
 

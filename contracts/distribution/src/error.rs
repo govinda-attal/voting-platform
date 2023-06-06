@@ -12,4 +12,10 @@ pub enum ContractError {
 
     #[error("{0}")]
     PaymentError(#[from] PaymentError),
+
+    #[error("Expected balance vote tokens")]
+    ExpectedBalanceVoteTokens,
+
+    #[error("Expected joining fees in atoms")]
+    ExpectedJoiningFeeInAtoms,
 }

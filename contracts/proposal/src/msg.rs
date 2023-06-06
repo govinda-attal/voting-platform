@@ -8,6 +8,7 @@ pub struct InstantiateMsg {
     pub distribution_contract: String,
     pub membership_contract: String,
     pub joining_fee: Coin,
+    pub new_member_vote_tokens: Coin,
 }
 
 #[cw_serde]

@@ -1,4 +1,8 @@
+use std::string::ParseError;
+
+use crate::error::ContractError;
 use crate::msg::{InstantiateMsg, InstantiationData};
+use crate::state::{Config, CONFIG};
 use crate::{execute, instantiate, query, reply};
 use anyhow::Result as AnyResult;
 use common::msg::membership::{ExecMsg, IsMemberResp, QueryMsg};
@@ -8,8 +12,8 @@ use cw_multi_test::{App, ContractWrapper, Executor};
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
 
 use distribution::multitest::CodeId as DistributionId;
+use proposal::multitest::{CodeId as ProposalId, Contract as ProposalContract};
 use proxy::multitest::{CodeId as ProxyId, Contract as ProxyContract};
-use proxy::multitest::{CodeId as ProposalId, Contract as ProposalContract};
 
 #[cfg(test)]
 mod tests;
@@ -26,7 +30,7 @@ impl CodeId {
     pub fn instantiate(
         self,
         app: &mut App,
-        sender: &str,
+        sender: &Addr,
         new_member_vote_tokens: Coin,
         vote_token_price: Coin,
         joining_fee: Coin,
@@ -63,11 +67,11 @@ impl Contract {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[track_caller]
+    // #[track_caller]
     pub fn instantiate(
         app: &mut App,
         code_id: CodeId,
-        sender: &str,
+        sender: &Addr,
         new_member_vote_tokens: Coin,
         vote_token_price: Coin,
         joining_fee: Coin,
@@ -77,7 +81,7 @@ impl Contract {
         initial_members: &[&str],
         label: &str,
         funds: &[Coin],
-    ) -> AnyResult<(Self, InstantiationData)> {
+    ) -> AnyResult<(Contract, InstantiationData)> {
         let msg = InstantiateMsg {
             new_member_vote_tokens,
             vote_token_price,
@@ -89,19 +93,19 @@ impl Contract {
         };
 
         let msg = WasmMsg::Instantiate {
-            admin: None,
+            admin: Some(sender.to_string()),
             code_id: code_id.0,
             msg: to_binary(&msg)?,
             funds: funds.to_vec(),
             label: label.into(),
         };
 
-        let res = app.execute(Addr::unchecked(sender), msg.into())?;
+        let res = app.execute(sender.clone(), msg.into())?;
+
         let data = parse_instantiate_response_data(res.data.unwrap_or_default().as_slice())?;
 
         let contract = Self(Addr::unchecked(data.contract_address));
         let data = from_binary(&data.data.unwrap_or_default())?;
-
         Ok((contract, data))
     }
 
@@ -113,5 +117,9 @@ impl Contract {
         app.wrap()
             .query_wasm_smart(self.0.clone(), &query)
             .map_err(Into::into)
+    }
+
+    pub fn load_config(&self, app: &App) -> Config {
+        CONFIG.query(&app.wrap(), self.addr().clone()).unwrap()
     }
 }

@@ -42,12 +42,11 @@ impl Contract {
     pub fn join(
         &self,
         app: &mut App,
-        sender: &str,
+        sender: &Addr,
         funds: &[Coin],
     ) -> AnyResult<Option<ProxyMemberData>> {
         let msg = ExecMsg::Join {};
-        let resp =
-            app.execute_contract(Addr::unchecked(sender), self.addr().clone(), &msg, funds)?;
+        let resp = app.execute_contract(sender.clone(), self.addr().clone(), &msg, &funds)?;
         resp.data
             .map(|data| parse_execute_response_data(&data))
             .transpose()?
@@ -58,9 +57,9 @@ impl Contract {
     }
 
     #[track_caller]
-    pub fn vote(&self, app: &mut App, sender: &str, funds: &[Coin]) -> AnyResult<()> {
+    pub fn vote(&self, app: &mut App, sender: &Addr, funds: &[Coin]) -> AnyResult<()> {
         let msg = ExecMsg::Vote {};
-        app.execute_contract(Addr::unchecked(sender), self.addr().clone(), &msg, funds)?;
+        app.execute_contract(sender.clone(), self.addr().clone(), &msg, funds)?;
         Ok(())
     }
 }

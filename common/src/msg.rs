@@ -1,4 +1,5 @@
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Coin;
 
 pub mod membership {
     use cosmwasm_schema::QueryResponses;
@@ -8,7 +9,7 @@ pub mod membership {
     #[cw_serde]
     pub enum ExecMsg {
         ProposeMember { addr: String },
-        VoteMemberProposal {},
+        VoteMemberProposal { voter: String, voter_proxy: String },
         NewMember {},
     }
 
@@ -17,11 +18,26 @@ pub mod membership {
     pub enum QueryMsg {
         #[returns(IsMemberResp)]
         IsMember { addr: String },
+        #[returns(IsMemberResp)]
+        IsProposedMember { addr: String },
+        #[returns(OwnerProxyResp)]
+        OwnerProxy { owner: String },
     }
 
     #[cw_serde]
     pub struct IsMemberResp {
-        pub is_member: bool,
+        pub ok: bool,
+    }
+
+    #[cw_serde]
+    pub struct IsProposedMemberResp {
+        pub ok: bool,
+    }
+
+    #[cw_serde]
+    pub struct OwnerProxyResp {
+        pub owner: String,
+        pub proxy: String,
     }
 }
 
@@ -35,4 +51,10 @@ pub struct ProposalMemberData {
 pub struct ProxyMemberData {
     pub owner_addr: String,
     pub proxy_addr: String,
+}
+
+#[cw_serde]
+#[derive(Default)]
+pub struct WithdrawableResp {
+    pub funds: Option<Coin>,
 }

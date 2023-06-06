@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use common::keys::VOTE_DENOM;
 use cosmwasm_std::{
-    coin, coins, ensure, to_binary, Addr, Coin, DepsMut, Empty, Env, MessageInfo, Order, Response,
-    SubMsg, Uint128, WasmMsg,
+    coin, coins, ensure, to_binary, Addr, BankMsg, Coin, DepsMut, Empty, Env, MessageInfo, Order,
+    Response, SubMsg, Uint128, WasmMsg,
 };
 
 use cw_utils::must_pay;
@@ -41,7 +41,7 @@ pub fn propose_member(
     );
 
     ensure!(
-        CANDIDATES.has(deps.storage, &addr),
+        !CANDIDATES.has(deps.storage, &addr),
         ContractError::ExistingProposalInProgress
     );
 
@@ -54,10 +54,11 @@ pub fn propose_member(
         distribution_contract: config.distribution_contract.into_string(),
         membership_contract: membership_contract.clone(),
         joining_fee: config.joining_fee,
+        new_member_vote_tokens: config.new_member_vote_tokens,
     };
     let inst_msg = WasmMsg::Instantiate {
         admin: Some(membership_contract),
-        code_id: config.proxy_code_id,
+        code_id: config.proposal_code_id,
         msg: to_binary(&inst_msg)?,
         funds: coins(vote_tokens.u128(), VOTE_DENOM),
         label: format!("{} Proposal", addr),
@@ -69,7 +70,6 @@ pub fn propose_member(
         .add_attribute("action", "propose_member")
         .add_attribute("sender", info.sender.as_str())
         .add_attribute("addr", addr.as_str());
-
     Ok(resp)
 }
 
@@ -77,10 +77,24 @@ pub fn vote_member_proposal(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
+    voter: String,
+    voter_proxy: String,
 ) -> Result<Response, ContractError> {
+    let voter = deps.api.addr_validate(&voter)?;
+    let voter_proxy = deps.api.addr_validate(&voter_proxy)?;
     ensure!(
         !members().has(deps.storage, &info.sender),
         ContractError::AlreadyAMember
+    );
+
+    ensure!(
+        CANDIDATES.has(deps.storage, &info.sender),
+        ContractError::NotProposedMember
+    );
+
+    ensure!(
+        members().load(deps.storage, &voter_proxy)? == voter,
+        ContractError::MemberProxyMismatch
     );
 
     // let owner: Addr = proposal::state::OWNER.query(&deps.querier, info.sender)?;
@@ -121,6 +135,9 @@ pub fn new_member(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
         !members().has(deps.storage, &info.sender),
         ContractError::AlreadyAMember
     );
+
+    let new_member_vote_amount = must_pay(&info, VOTE_DENOM)?;
+
     let proposal_addr = info.sender;
     let proposal_owner = proposal::state::OWNER.query(&deps.querier, proposal_addr.clone())?;
 
@@ -132,11 +149,16 @@ pub fn new_member(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
     CANDIDATES.remove(deps.storage, &proposal_addr);
 
     let config = CONFIG.load(deps.storage)?;
-    let membership_contract = env.contract.address.into_string();
 
+    ensure!(
+        new_member_vote_amount == config.new_member_vote_tokens.amount,
+        ContractError::NotEnoughNewMemberVoteTokens
+    );
+
+    let membership_contract = env.contract.address.into_string();
     let msg = ProxyInstantiateMsg {
         owner: proposal_owner.clone().into_string(),
-        distribution_contract: config.distribution_contract.into_string(),
+        distribution_contract: config.distribution_contract.to_string(),
         membership_contract: membership_contract.clone(),
     };
 
@@ -144,7 +166,7 @@ pub fn new_member(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
         admin: Some(membership_contract),
         code_id: config.proxy_code_id,
         msg: to_binary(&msg)?,
-        funds: vec![],
+        funds: vec![config.new_member_vote_tokens],
         label: format!("{} Proxy", proposal_owner),
     };
 

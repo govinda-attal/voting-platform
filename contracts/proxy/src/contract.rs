@@ -6,13 +6,16 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 
 mod exec;
+mod query;
 mod reply;
 
 use crate::error::ContractError;
-use crate::msg::{ExecMsg, InstantiateMsg};
+use crate::msg::{ExecMsg, InstantiateMsg, QueryMsg};
 use crate::state::{Config, CONFIG, OWNER};
 
 const PROPOSE_MEMBER_REPLY_ID: u64 = 1;
+const WITHDRAW_REPLY_ID: u64 = 2;
+const BUY_VOTE_TOKENS_REPLY_ID: u64 = 3;
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -63,13 +66,24 @@ pub fn execute(
 
     match msg {
         ProposeMember { addr } => exec::propose_member(deps, info, addr),
-        BuyVoteTokens {} => todo!(),
+        BuyVoteTokens {} => exec::buy_vote_tokens(deps, env, info),
+        Withdraw {} => exec::withdraw(deps, env, info),
+    }
+}
+
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    use QueryMsg::*;
+
+    match msg {
+        Withdrawable {} => to_binary(&query::withdrawable(deps, env)?),
     }
 }
 
 pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> Result<Response, ContractError> {
     match reply.id {
         PROPOSE_MEMBER_REPLY_ID => reply::propose_member(reply.result.into_result()),
+        WITHDRAW_REPLY_ID => reply::withdraw(deps, env, reply.result.into_result()),
+        BUY_VOTE_TOKENS_REPLY_ID => reply::buy_vote_tokens(deps, env, reply.result.into_result()),
         id => Err(ContractError::UnrecognizedReplyId(id)),
     }
 }
