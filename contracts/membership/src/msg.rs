@@ -4,7 +4,7 @@ use cosmwasm_std::{Coin, Decimal};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub new_member_vote_tokens: Coin,
+    pub initial_vote_token_distribution_part: Decimal,
     pub vote_token_price: Coin,
     pub joining_fee: Coin,
     pub proxy_code_id: u64,

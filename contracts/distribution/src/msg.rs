@@ -6,7 +6,6 @@ use cosmwasm_std::{Binary, Coin};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub new_member_vote_tokens: Coin,
     pub vote_token_price: Coin,
     pub total_vote_tokens_in_circulation: Coin,
     pub data: Binary,
@@ -14,7 +13,10 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecMsg {
-    DistributeJoiningFee { voter_tokens: HashMap<String, Coin> },
+    DistributeJoiningFee {
+        total_vote_tokens: Coin,
+        voter_tokens: HashMap<String, Coin>,
+    },
     BuyVoteTokens {},
     Withdraw {},
 }

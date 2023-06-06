@@ -7,7 +7,7 @@ use crate::{
     error::ContractError,
     msg::ExecMsg,
     msg::InstantiateMsg,
-    state::{Config, CONFIG, OWNER, VOTER_TOKENS},
+    state::{Config, CONFIG, OWNER, VOTER_TOKENS, IS_PASSED},
 };
 
 mod exec;
@@ -42,7 +42,6 @@ pub fn instantiate(
             distribution_contract,
             membership_contract,
             joining_fee: msg.joining_fee,
-            new_member_vote_tokens: msg.new_member_vote_tokens,
         },
     )?;
 
@@ -51,6 +50,8 @@ pub fn instantiate(
         &proposer,
         &coin(vote_amount.u128(), VOTE_DENOM),
     )?;
+
+    IS_PASSED.save(deps.storage, &false)?;
 
     let resp = Response::new()
         .add_attribute("action", "new_proposal")

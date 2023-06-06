@@ -5,9 +5,12 @@ use common::keys::{ATOM, VOTE_DENOM};
 use common::msg::membership::{IsMemberResp, QueryMsg as MembershipQueryMsg};
 
 use cosmwasm_std::{
-    coin, coins, ensure, BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response, Uint128,
+    coin, coins, ensure, BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response, StdResult,
+    Uint128,
 };
+use cw_utils::must_pay;
 
+use crate::state::TOTAL_VOTE_TOKENS_IN_CIRCULATION;
 use crate::{
     error::ContractError,
     state::{MemberData, CONFIG, CORRECTION, MEMBER_DATA},
@@ -19,28 +22,14 @@ pub fn distribute_joining_fee(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
+    total_vote_tokens: Coin,
     voter_tokens: HashMap<String, Coin>,
 ) -> Result<Response, ContractError> {
-    let incoming_vote_tokens = info
-        .funds
-        .iter()
-        .find(|coin| coin.denom == VOTE_DENOM)
-        .ok_or(ContractError::ExpectedBalanceVoteTokens)?
-        .amount
-        .u128();
-    let fee_to_distribute = info
-        .funds
-        .iter()
-        .find(|coin| coin.denom == ATOM)
-        .ok_or(ContractError::ExpectedJoiningFeeInAtoms)?
-        .amount
-        .u128();
-
-    let config = CONFIG.load(deps.storage)?;
+    let fee_to_distribute = must_pay(&info, ATOM)?.u128();
     // Membership at the time of instantiation of new proxy for new joining member transfers new member tokens directly
-    // Membership passed balance of balance vote tokens to distribution
+    // Proposal passed total_vote_tokens & vote_tokens (share of each voter)
     // this helps to calculate total weight and distribute rewards among voters
-    let total_weight = config.new_member_vote_tokens.amount.u128() + incoming_vote_tokens;
+    let total_weight = total_vote_tokens.amount.u128();
 
     let total_points = fee_to_distribute * POINTS_SCALE;
     let ppw = total_points / total_weight;
@@ -158,6 +147,10 @@ pub fn buy_vote_tokens(
         .amount;
 
     if vote_amount.u128() > 0 && available_vote_amount > vote_amount {
+        TOTAL_VOTE_TOKENS_IN_CIRCULATION.update(deps.storage, |mut c| -> StdResult<_> {
+            c.amount += vote_amount;
+            Ok(c)
+        })?;
         resp = resp.add_message(BankMsg::Send {
             to_address: info.sender.into(),
             amount: coins(vote_amount.u128(), VOTE_DENOM),

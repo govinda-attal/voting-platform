@@ -1,7 +1,7 @@
 use common::keys::{ATOM, VOTE_DENOM};
 use cosmwasm_std::{
-    coin, ensure, to_binary, Addr, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdResult, SubMsg, Uint128, WasmMsg,
+    coin, ensure, to_binary, Addr, Binary, Coin, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
+    Response, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw_utils::must_pay;
@@ -40,17 +40,21 @@ pub fn instantiate(
         ContractError::NotEnoughInitialMembers
     );
 
-    let vote_funds = must_pay(&info, VOTE_DENOM)?;
+    let mut vote_funds = must_pay(&info, VOTE_DENOM)?;
 
     ensure!(
-        vote_funds
-            >= Uint128::new(msg.initial_members.len() as u128) * msg.new_member_vote_tokens.amount,
-        ContractError::InitialisationLessVoteTokens
+        msg.initial_vote_token_distribution_part >= Decimal::percent(0)
+            && msg.initial_vote_token_distribution_part <= Decimal::percent(100),
+        ContractError::InitialisationInvalidVoteTokenDistributionPart
     );
 
+    if msg.initial_vote_token_distribution_part > Decimal::percent(0) {
+        vote_funds = vote_funds * msg.initial_vote_token_distribution_part;
+    }
+
     ensure!(
-        msg.new_member_vote_tokens.amount >= Uint128::new(2),
-        ContractError::NotEnoughNewMemberVoteTokens
+        vote_funds / Uint128::new(msg.initial_members.len() as u128) >= Uint128::new(1),
+        ContractError::InitialisationLessVoteTokens
     );
 
     ensure!(
@@ -65,16 +69,16 @@ pub fn instantiate(
         proxy_code_id: msg.proxy_code_id,
         distribution_contract: Addr::unchecked(""), // will get it in reply!
         joining_fee: msg.joining_fee,
-        new_member_vote_tokens: msg.new_member_vote_tokens.clone(),
+        initial_vote_token_distribution_part: msg.initial_vote_token_distribution_part,
     };
 
     CONFIG.save(deps.storage, &config)?;
+    
 
     let members_data = to_binary(&msg.initial_members)?;
     let membership_contract = env.contract.address.to_string();
 
     let instantiate_msg = DistributionInstantiateMsg {
-        new_member_vote_tokens: msg.new_member_vote_tokens,
         vote_token_price: msg.vote_token_price,
         total_vote_tokens_in_circulation: coin(vote_funds.u128(), VOTE_DENOM),
         data: members_data,

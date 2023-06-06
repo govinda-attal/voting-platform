@@ -4,7 +4,7 @@ use cw2::set_contract_version;
 use crate::{
     error::ContractError,
     msg::{ExecMsg, InstantiateMsg, QueryMsg},
-    state::{Config, Correction, CONFIG, CORRECTION},
+    state::{Config, Correction, CONFIG, CORRECTION, TOTAL_VOTE_TOKENS_IN_CIRCULATION},
 };
 
 mod exec;
@@ -27,12 +27,12 @@ pub fn instantiate(
         deps.storage,
         &Config {
             membership_contract: info.sender,
-            new_member_vote_tokens: msg.new_member_vote_tokens,
             vote_token_price: msg.vote_token_price,
         },
     )?;
 
     CORRECTION.save(deps.storage, &Correction::default())?;
+    TOTAL_VOTE_TOKENS_IN_CIRCULATION.save(deps.storage, &msg.total_vote_tokens_in_circulation)?;
 
     Ok(Response::new().set_data(msg.data))
 }
@@ -45,9 +45,10 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     use ExecMsg::*;
     match msg {
-        DistributeJoiningFee { voter_tokens } => {
-            exec::distribute_joining_fee(deps, env, info, voter_tokens)
-        }
+        DistributeJoiningFee {
+            total_vote_tokens,
+            voter_tokens,
+        } => exec::distribute_joining_fee(deps, env, info, total_vote_tokens, voter_tokens),
         BuyVoteTokens {} => exec::buy_vote_tokens(deps, env, info),
         Withdraw {} => exec::withdraw(deps, env, info),
     }

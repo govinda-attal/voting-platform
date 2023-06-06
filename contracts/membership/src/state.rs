@@ -10,7 +10,7 @@ pub struct Config {
     pub proposal_code_id: u64,
     pub distribution_contract: Addr,
     pub joining_fee: Coin,
-    pub new_member_vote_tokens: Coin,
+    pub initial_vote_token_distribution_part: Decimal,
 }
 
 pub struct MembersIndexes<'a> {

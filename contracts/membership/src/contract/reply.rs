@@ -5,15 +5,15 @@ use common::{
     msg::{ProposalMemberData, ProxyMemberData},
 };
 use cosmwasm_std::{
-    coin, from_binary, to_binary, Addr, DepsMut, Env, Order, Response, StdError, StdResult, SubMsg,
-    SubMsgResponse, Uint128, WasmMsg,
+    coin, from_binary, to_binary, Addr, BankMsg, Coin, Decimal, DepsMut, Env, Order, Response,
+    StdError, StdResult, SubMsg, SubMsgResponse, Uint128, WasmMsg,
 };
 use cw_utils::parse_instantiate_response_data;
 
 use crate::{
     error::ContractError,
     msg::InstantiationData,
-    state::{AWAITING_INITIAL_RESPS, CONFIG, candidates},
+    state::{candidates, AWAITING_INITIAL_RESPS, CONFIG},
 };
 use proxy::msg::InstantiateMsg as ProxyInstantiateMsg;
 
@@ -34,14 +34,30 @@ pub fn distribution_instantiated(
     config.distribution_contract = Addr::unchecked(response.contract_address);
     CONFIG.save(deps.storage, &config)?;
 
-    let balance = deps
+    let total_vote_tokens = deps
         .querier
         .query_balance(env.contract.address.to_string(), VOTE_DENOM)?;
 
+    let mut vote_tokens_to_distribute = total_vote_tokens.clone();
+
+    if config.initial_vote_token_distribution_part > Decimal::percent(0) {
+        vote_tokens_to_distribute.amount =
+            vote_tokens_to_distribute.amount * config.initial_vote_token_distribution_part
+    }
+
+    let mut balance_vote_tokens = Coin {
+        amount: total_vote_tokens.amount - vote_tokens_to_distribute.amount,
+        denom: VOTE_DENOM.to_string(),
+    };
+
     let vote_tokens_per_member = coin(
-        balance.amount.u128() / initial_members.len() as u128,
+        vote_tokens_to_distribute.amount.u128() / initial_members.len() as u128,
         VOTE_DENOM,
     );
+
+    // any remainders
+    balance_vote_tokens.amount += vote_tokens_to_distribute.amount
+        - vote_tokens_per_member.amount * Uint128::new(initial_members.len() as u128);
 
     let membership_contract = env.contract.address.to_string();
     let msgs: Vec<_> = initial_members
@@ -67,7 +83,15 @@ pub fn distribution_instantiated(
         .collect::<Result<_, _>>()?;
 
     AWAITING_INITIAL_RESPS.save(deps.storage, &(msgs.len() as _))?;
-    let resp = Response::new().add_submessages(msgs);
+    let mut resp = Response::new().add_submessages(msgs);
+
+    if balance_vote_tokens.amount.u128() > 0 {
+        let bank_msg = BankMsg::Send {
+            to_address: config.distribution_contract.into_string(),
+            amount: vec![balance_vote_tokens],
+        };
+        resp = resp.add_message(bank_msg)
+    }
 
     Ok(resp)
 }

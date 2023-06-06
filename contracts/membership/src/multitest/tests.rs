@@ -2,16 +2,237 @@ use std::collections::HashMap;
 
 use common::keys::{ATOM, VOTE_DENOM};
 use common::msg::{ProposalMemberData, WithdrawableResp};
-use cosmwasm_std::{coin, coins, Addr};
+use cosmwasm_std::{coin, coins, Addr, Decimal};
 use cw_multi_test::App;
 
 use super::CodeId as MembershipId;
-use distribution::multitest::CodeId as DistributionId;
+use distribution::multitest::{CodeId as DistributionId, Contract as DistributionContract};
 use proposal::multitest::{CodeId as ProposalId, Contract as ProposalContract};
 use proxy::multitest::{CodeId as ProxyId, Contract as ProxyContract};
 
 #[test]
-fn test_member_vote_flow() {
+fn sample_member_vote_flow_from_exercise() {
+    let admin = Addr::unchecked("admin");
+    let member1 = Addr::unchecked("member1");
+    let member2 = Addr::unchecked("member2");
+    let member3 = Addr::unchecked("member3");
+    let members = [member1.as_str(), member2.as_str(), member3.as_str()];
+    let candidate = Addr::unchecked("candidate");
+
+    let mut app = App::new(|router, _api, storage| {
+        router
+            .bank
+            .init_balance(storage, &admin, coins(100, VOTE_DENOM))
+            .unwrap();
+
+        router
+            .bank
+            .init_balance(storage, &candidate, coins(100, ATOM))
+            .unwrap();
+    });
+
+    let proxy_id = ProxyId::store_code(&mut app);
+    let proposal_id = ProposalId::store_code(&mut app);
+    let distribution_id = DistributionId::store_code(&mut app);
+    let membership_id = MembershipId::store_code(&mut app);
+
+    let (membership, data) = membership_id
+        .instantiate(
+            &mut app,
+            &admin,
+            Decimal::percent(19),
+            coin(5, ATOM),
+            coin(30, ATOM),
+            proxy_id,
+            proposal_id,
+            distribution_id,
+            &members,
+            "Membership",
+            &coins(100, VOTE_DENOM),
+        )
+        .unwrap();
+
+    let membership_config = membership.load_config(&app);
+    let distribution_contract =
+        DistributionContract::from_addr(membership_config.distribution_contract);
+
+    let proxies: HashMap<_, _> = data
+        .members
+        .into_iter()
+        .map(|member| {
+            (
+                member.owner_addr,
+                ProxyContract::from_addr(Addr::unchecked(member.proxy_addr)),
+            )
+        })
+        .collect();
+
+    assert_eq!(proxies.len(), 3);
+    let member1_proxy = proxies.get(members[0]).unwrap();
+    let member2_proxy = proxies.get(members[1]).unwrap();
+    let member3_proxy = proxies.get(members[2]).unwrap();
+
+    assert!(
+        membership
+            .is_member(&app, member1_proxy.addr().as_str())
+            .unwrap()
+            .ok
+    );
+    assert!(
+        membership
+            .is_member(&app, member2_proxy.addr().as_str())
+            .unwrap()
+            .ok
+    );
+
+    assert_eq!(
+        app.wrap().query_balance(&member1, VOTE_DENOM).unwrap(),
+        coin(6, VOTE_DENOM),
+    );
+
+    assert_eq!(
+        app.wrap().query_balance(&member2, VOTE_DENOM).unwrap(),
+        coin(6, VOTE_DENOM),
+    );
+    assert_eq!(
+        app.wrap().query_balance(&member3, VOTE_DENOM).unwrap(),
+        coin(6, VOTE_DENOM),
+    );
+
+    let proposal_data = member1_proxy
+        .propose_member(&mut app, &member1, &coins(5, VOTE_DENOM), &candidate)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(proposal_data.owner_addr, candidate.to_string());
+
+    let candidate_proposal =
+        ProposalContract::from_addr(Addr::unchecked(proposal_data.proposal_addr));
+
+    assert_eq!(
+        app.wrap()
+            .query_balance(candidate_proposal.addr(), VOTE_DENOM)
+            .unwrap(),
+        coin(5, VOTE_DENOM),
+    );
+
+    candidate_proposal
+        .vote(&mut app, &member2, &coins(3, VOTE_DENOM))
+        .unwrap();
+
+    assert_eq!(
+        app.wrap()
+            .query_balance(candidate_proposal.addr(), VOTE_DENOM)
+            .unwrap(),
+        coin(8, VOTE_DENOM),
+    );
+
+    candidate_proposal
+        .vote(&mut app, &member3, &coins(2, VOTE_DENOM))
+        .unwrap();
+
+    assert_eq!(
+        app.wrap()
+            .query_balance(candidate_proposal.addr(), VOTE_DENOM)
+            .unwrap(),
+        coin(10, VOTE_DENOM),
+    );
+
+    let candidate_proxy_data = candidate_proposal
+        .join(&mut app, &candidate, &coins(100, ATOM))
+        .unwrap()
+        .unwrap();
+
+    let candidate_now_member_proxy =
+        ProxyContract::from_addr(Addr::unchecked(candidate_proxy_data.proxy_addr));
+
+    assert!(
+        membership
+            .is_member(&app, candidate_now_member_proxy.addr().as_str())
+            .unwrap()
+            .ok
+    );
+
+    assert_eq!(
+        app.wrap()
+            .query_balance(candidate.as_str(), VOTE_DENOM)
+            .unwrap(),
+        coin(10, VOTE_DENOM),
+    );
+
+    assert_eq!(
+        member1_proxy.withdrawable(&app).unwrap(),
+        WithdrawableResp {
+            funds: Some(coin(50, ATOM))
+        }
+    );
+
+    assert_eq!(
+        member2_proxy.withdrawable(&app).unwrap(),
+        WithdrawableResp {
+            funds: Some(coin(30, ATOM))
+        }
+    );
+
+    assert_eq!(
+        member3_proxy.withdrawable(&app).unwrap(),
+        WithdrawableResp {
+            funds: Some(coin(20, ATOM))
+        }
+    );
+
+    member1_proxy.withdraw(&mut app, &member1).unwrap();
+
+    assert_eq!(
+        app.wrap().query_balance(&member1, ATOM).unwrap(),
+        coin(50, ATOM),
+    );
+
+    assert_eq!(
+        member1_proxy.withdrawable(&app).unwrap(),
+        WithdrawableResp { funds: None }
+    );
+
+    assert_eq!(
+        app.wrap()
+            .query_balance(distribution_contract.addr(), ATOM)
+            .unwrap(),
+        coin(50, ATOM),
+    );
+
+    member2_proxy.buy_vote_tokens(&mut app, &member2).unwrap();
+
+    assert_eq!(
+        app.wrap().query_balance(&member2, VOTE_DENOM).unwrap(),
+        coin(9, VOTE_DENOM),
+    );
+    assert_eq!(
+        member2_proxy.withdrawable(&app).unwrap(),
+        WithdrawableResp { funds: None }
+    );
+
+    assert_eq!(
+        app.wrap()
+            .query_balance(distribution_contract.addr(), ATOM)
+            .unwrap(),
+        coin(50, ATOM),
+    );
+
+    assert_eq!(
+        distribution_contract.total_vote_tokens_in_circulation(&app),
+        coin(25, VOTE_DENOM)
+    );
+
+    assert_eq!(
+        app.wrap()
+            .query_balance(distribution_contract.addr(), VOTE_DENOM)
+            .unwrap(),
+        coin(76, VOTE_DENOM),
+    );
+}
+
+#[test]
+fn member_vote_flow_with_rewards_and_vote_tokens_buy() {
     let admin = Addr::unchecked("admin");
     let alice = Addr::unchecked("alice");
     let bob = Addr::unchecked("bob");
@@ -21,7 +242,7 @@ fn test_member_vote_flow() {
     let mut app = App::new(|router, _api, storage| {
         router
             .bank
-            .init_balance(storage, &admin, coins(10, VOTE_DENOM))
+            .init_balance(storage, &admin, coins(100, VOTE_DENOM))
             .unwrap();
 
         router
@@ -39,7 +260,7 @@ fn test_member_vote_flow() {
         .instantiate(
             &mut app,
             &admin,
-            coin(2, VOTE_DENOM),
+            Decimal::percent(10),
             coin(5, ATOM),
             coin(30, ATOM),
             proxy_id,
@@ -47,11 +268,13 @@ fn test_member_vote_flow() {
             distribution_id,
             &members,
             "Membership",
-            &coins(10, VOTE_DENOM),
+            &coins(100, VOTE_DENOM),
         )
         .unwrap();
 
     let membership_config = membership.load_config(&app);
+    let distribution_contract =
+        DistributionContract::from_addr(membership_config.distribution_contract);
 
     let proxies: HashMap<_, _> = data
         .members
@@ -135,7 +358,7 @@ fn test_member_vote_flow() {
 
     assert_eq!(
         app.wrap().query_balance(&charlie, VOTE_DENOM).unwrap(),
-        coin(2, VOTE_DENOM),
+        coin(6, VOTE_DENOM),
     );
 
     assert_eq!(
@@ -166,7 +389,7 @@ fn test_member_vote_flow() {
 
     assert_eq!(
         app.wrap()
-            .query_balance(&membership_config.distribution_contract, ATOM)
+            .query_balance(distribution_contract.addr(), ATOM)
             .unwrap(),
         coin(15, ATOM),
     );
@@ -184,15 +407,13 @@ fn test_member_vote_flow() {
 
     assert_eq!(
         app.wrap()
-            .query_balance(&membership_config.distribution_contract, ATOM)
+            .query_balance(distribution_contract.addr(), ATOM)
             .unwrap(),
         coin(15, ATOM),
     );
 
     assert_eq!(
-        app.wrap()
-            .query_balance(&membership_config.distribution_contract, VOTE_DENOM)
-            .unwrap(),
-        coin(1, VOTE_DENOM),
+        distribution_contract.total_vote_tokens_in_circulation(&app),
+        coin(13, VOTE_DENOM)
     );
 }

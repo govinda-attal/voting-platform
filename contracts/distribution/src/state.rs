@@ -25,7 +25,6 @@ impl MemberData {
 #[cw_serde]
 pub struct Config {
     pub membership_contract: Addr,
-    pub new_member_vote_tokens: Coin,
     pub vote_token_price: Coin,
 }
 

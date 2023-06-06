@@ -15,8 +15,8 @@ pub enum ContractError {
     #[error("{0}")]
     UnrecognizedReplyId(u64),
 
-    #[error("Vote rejected")]
-    VoteRejected,
+    #[error("Vote rejected as proposal was passed earlier")]
+    VoteRejectedProposalWasPassedEarlier,
 
     #[error("Pay joining fee {fee}")]
     JoinRejected { fee: Coin },

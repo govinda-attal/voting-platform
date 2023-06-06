@@ -1,7 +1,7 @@
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Coin};
 use cw_multi_test::{App, ContractWrapper};
 
-use crate::{execute, instantiate, query};
+use crate::{execute, instantiate, query, state::TOTAL_VOTE_TOKENS_IN_CIRCULATION};
 
 pub struct CodeId(u64);
 
@@ -28,5 +28,11 @@ impl Contract {
 
     pub fn addr(&self) -> &Addr {
         &self.0
+    }
+    #[track_caller]
+    pub fn total_vote_tokens_in_circulation(&self, app: &App) -> Coin {
+        TOTAL_VOTE_TOKENS_IN_CIRCULATION
+            .query(&app.wrap(), self.addr().clone())
+            .unwrap()
     }
 }

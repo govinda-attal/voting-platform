@@ -21,6 +21,9 @@ pub enum ContractError {
     #[error("Unrecognized reply id")]
     UnrecognizedReplyId(u64),
 
+    #[error("vote tokens distribution part must be between [0-100]")]
+    InitialisationInvalidVoteTokenDistributionPart,
+
     #[error("vote tokens missing on initialization")]
     InitialisationVoteTokensMissing,
 
@@ -42,15 +45,10 @@ pub enum ContractError {
     #[error("Cannot propose a member")]
     AlreadyAMember,
 
-    #[error("Not a member")]
-    NotAMember,
-
     #[error("Member proxy mistmatch")]
     MemberProxyMismatch,
 
     #[error("Existing proposal voting in progress")]
     ExistingProposalInProgress,
 
-    #[error("Cannot vote without vote tokens")]
-    VoteRejectedNoVoteTokens,
 }

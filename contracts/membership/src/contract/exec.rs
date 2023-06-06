@@ -13,7 +13,7 @@ use proxy::msg::InstantiateMsg as ProxyInstantiateMsg;
 use crate::{
     contract::{PROPOSAL_INSTANTIATION_REPLY_ID, PROPOSAL_PASS_REPLY_ID},
     error::ContractError,
-    state::{members, CONFIG, candidates},
+    state::{candidates, members, CONFIG},
 };
 
 pub fn propose_member(
@@ -54,7 +54,6 @@ pub fn propose_member(
         distribution_contract: config.distribution_contract.into_string(),
         membership_contract: membership_contract.clone(),
         joining_fee: config.joining_fee,
-        new_member_vote_tokens: config.new_member_vote_tokens,
     };
     let inst_msg = WasmMsg::Instantiate {
         admin: Some(membership_contract),
@@ -83,12 +82,20 @@ pub fn vote_member_proposal(
     let voter = deps.api.addr_validate(&voter)?;
     let voter_proxy = deps.api.addr_validate(&voter_proxy)?;
     ensure!(
+        members().has(deps.storage, &info.sender),
+        ContractError::Unauthorized
+    );
+    ensure!(
         !members().has(deps.storage, &info.sender),
         ContractError::AlreadyAMember
     );
 
     ensure!(
-        candidates().idx.proposal.item(deps.storage, info.sender.clone())?.is_some(),
+        candidates()
+            .idx
+            .proposal
+            .item(deps.storage, info.sender.clone())?
+            .is_some(),
         ContractError::NotProposedMember
     );
 
@@ -150,11 +157,6 @@ pub fn new_member(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
 
     let config = CONFIG.load(deps.storage)?;
 
-    ensure!(
-        new_member_vote_amount == config.new_member_vote_tokens.amount,
-        ContractError::NotEnoughNewMemberVoteTokens
-    );
-
     let membership_contract = env.contract.address.into_string();
     let msg = ProxyInstantiateMsg {
         owner: proposal_owner.clone().into_string(),
@@ -166,7 +168,7 @@ pub fn new_member(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
         admin: Some(membership_contract),
         code_id: config.proxy_code_id,
         msg: to_binary(&msg)?,
-        funds: vec![config.new_member_vote_tokens],
+        funds: coins(new_member_vote_amount.u128(), VOTE_DENOM),
         label: format!("{} Proxy", proposal_owner),
     };
 

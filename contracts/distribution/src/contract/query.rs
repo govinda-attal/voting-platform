@@ -12,7 +12,7 @@ pub fn withdrawable(deps: Deps, _env: Env, proxy: String) -> StdResult<Withdrawa
         .may_load(deps.storage, &proxy)?
         .unwrap_or_default();
 
-    let mut reward_funds = member_data.reward_balance;
+    let mut reward_funds = member_data.reward_balance.clone();
     reward_funds.amount += member_data.points_balance / Uint128::new(POINTS_SCALE);
 
     if reward_funds.amount.is_zero() {

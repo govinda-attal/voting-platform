@@ -1,5 +1,8 @@
-use crate::{error::ContractError, state::{members, candidates}};
-use common::msg::membership::{IsMemberResp, OwnerProxyResp, IsProposedMemberResp};
+use crate::{
+    error::ContractError,
+    state::{candidates, members},
+};
+use common::msg::membership::{IsMemberResp, IsProposedMemberResp, OwnerProxyResp};
 use cosmwasm_std::{Addr, Deps, Order, StdError, StdResult};
 use cw_storage_plus::Prefixer;
 use std::str;

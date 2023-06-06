@@ -7,7 +7,6 @@ pub struct Config {
     pub distribution_contract: Addr,
     pub membership_contract: Addr,
     pub joining_fee: Coin,
-    pub new_member_vote_tokens: Coin,
 }
 
 pub const OWNER: Item<Addr> = Item::new("owner");
