@@ -27,13 +27,23 @@ Tested full voting cyle for member proposals in
 
 ## Example Flow from the test script
 ```
-joining_fee is 100 ATOM. There is proposal to add candidate to the protocol. member1 assigned 5 votes to that voting, member2 assigned 3 votes to that voting, and member3 assigned 2 votes to that voting. There are 19 vote tokens in total in the system, so the voting passes. member1 can pay 100 ATOM to join the system, and it is distributed: member1 gets 50 ATOM, member2 gets 30 ATOM, member3 gets 20 ATOM.
+joining_fee is 100 ATOM. There is proposal to add candidate to the protocol. 
+member1 assigned 5 votes to that voting, member2 assigned 3 votes to that voting, and member3 assigned 2 votes to that voting. 
+There are 19 vote tokens in total in the system, so the voting passes. 
+member1 can pay 100 ATOM to join the system, and it is distributed: 
+member1 gets 50 ATOM, member2 gets 30 ATOM, member3 gets 20 ATOM.
 ```
 
 ## Additional test flow
 ```
-System is bootstrapped with two members alice and bob each having 5 vote tokens. Total 10 vote tokens in circulation. there is a proposal from alice to add charlie to the protocol she contributes 3 vote tokens. later bob votes on proposal with 3 vote tokens. proposal is passed, charlie joins and pays joining fee of 30 atoms. Alice gets 15 ATOMs which she happily withdraws.
-Bob buys `3` vote tokens instead with token price of 5 atoms per vote token. charlie when joined as a member he got total of 6 vote tokens as initial votes. 
+System is bootstrapped with two members alice and bob each having 5 vote tokens. 
+Total 10 vote tokens in circulation. 
+There is a proposal from alice to add charlie to the protocol she contributes 3 vote tokens. 
+Later bob votes on proposal with 3 vote tokens. 
+proposal is passed, charlie joins and pays joining fee of 30 atoms. 
+Alice gets 15 ATOMs which she happily withdraws.
+Bob buys `3` vote tokens instead with token price of 5 atoms per vote token. 
+charlie when joined as a member he got total of 6 vote tokens as initial votes. 
 ```
 
 # Solution
