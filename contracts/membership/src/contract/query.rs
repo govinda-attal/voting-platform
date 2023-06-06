@@ -1,4 +1,4 @@
-use crate::{error::ContractError, state::{members, CANDIDATES}};
+use crate::{error::ContractError, state::{members, candidates}};
 use common::msg::membership::{IsMemberResp, OwnerProxyResp, IsProposedMemberResp};
 use cosmwasm_std::{Addr, Deps, Order, StdError, StdResult};
 use cw_storage_plus::Prefixer;
@@ -13,7 +13,7 @@ pub fn is_member(deps: Deps, addr: String) -> StdResult<IsMemberResp> {
 
 pub fn is_proposed_member(deps: Deps, addr: String) -> StdResult<IsProposedMemberResp> {
     let addr = deps.api.addr_validate(&addr)?;
-    let ok = CANDIDATES.has(deps.storage, &addr);
+    let ok = candidates().has(deps.storage, &addr);
 
     Ok(IsProposedMemberResp { ok })
 }

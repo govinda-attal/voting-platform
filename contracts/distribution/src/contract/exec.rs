@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use common::keys::{ATOM, VOTE_DENOM};
 
-use common::msg::membership::{IsMemberResp, QueryMsg as MembershipQueryMsg, IsProposedMemberResp};
+use common::msg::membership::{IsMemberResp, QueryMsg as MembershipQueryMsg};
 
 use cosmwasm_std::{
     coin, coins, ensure, BankMsg, Coin, DepsMut, Env, Event, MessageInfo, Response, Uint128,
@@ -21,19 +21,6 @@ pub fn distribute_joining_fee(
     info: MessageInfo,
     voter_tokens: HashMap<String, Coin>,
 ) -> Result<Response, ContractError> {
-
-    // let config = CONFIG.load(deps.storage)?;
-    // let is_proposed_member: IsProposedMemberResp = deps.querier.query_wasm_smart(
-    //     config.membership_contract,
-    //     &MembershipQueryMsg::IsProposedMember {
-    //         addr: info.sender.to_string(),
-    //     },
-    // )?;
-
-    // println!("{:?} is proposed member?? {:?}", is_proposed_member, info.sender);
-
-    // ensure!(is_proposed_member.ok, ContractError::Unauthorized);
-
     let incoming_vote_tokens = info
         .funds
         .iter()

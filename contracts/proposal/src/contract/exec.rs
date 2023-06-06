@@ -7,8 +7,8 @@ use cosmwasm_std::{
 };
 use cw_utils::must_pay;
 
-use common::msg::membership::{ExecMsg as MembershipExecMsg, OwnerProxyResp};
-use common::msg::membership::{IsMemberResp, QueryMsg::OwnerProxy};
+use common::msg::membership::{ExecMsg as MembershipExecMsg, OwnerProxyResp, IsProposedMemberResp};
+use common::msg::membership::{IsMemberResp, QueryMsg::OwnerProxy, QueryMsg::IsProposedMember};
 use distribution::msg::ExecMsg as DistributionExecMsg;
 
 use crate::contract::MEMBER_JOINED_REPLY_ID;
@@ -96,6 +96,15 @@ pub fn join(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 
     ensure!(sender == owner, ContractError::Unauthorized);
 
+   let is_proposed_member: IsProposedMemberResp = deps.querier.query_wasm_smart(
+        config.membership_contract.clone(),
+        &IsProposedMember {
+            addr: owner.to_string(),
+        },
+    )?;
+
+    ensure!(is_proposed_member.ok, ContractError::Unauthorized);
+
     let mut vote_tokens = deps
         .querier
         .query_balance(env.contract.address, VOTE_DENOM)?;
@@ -119,7 +128,7 @@ pub fn join(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
         })
         .collect::<Result<_, _>>()?;
 
-    let dis_msg = DistributionExecMsg::DistributeJoiningFee { voter_tokens };
+    let dis_msg = DistributionExecMsg::DistributeJoiningFee {voter_tokens };
     let dis_msg = WasmMsg::Execute {
         contract_addr: config.distribution_contract.into_string(),
         msg: to_binary(&dis_msg)?,

@@ -36,7 +36,30 @@ pub fn members() -> IndexedMap<'static, &'static Addr, Addr, MembersIndexes<'sta
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
+// // (candidate-addr, proposal-addr)
+// pub const CANDIDATES: Map<&Addr, Addr> = Map::new("candidates");
+
+pub struct CandidatesIndexes<'a> {
+    pub proposal: UniqueIndex<'a, Addr, Addr, Addr>,
+}
+
+impl<'a> IndexList<Addr> for CandidatesIndexes<'a> {
+    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Addr>> + '_> {
+        let v: [&dyn Index<Addr>; 1] = [&self.proposal];
+        Box::new(v.into_iter())
+    }
+}
+
 // (candidate-addr, proposal-addr)
-pub const CANDIDATES: Map<&Addr, Addr> = Map::new("candidates");
+// owner => proposal
+//
+// secondary indexes:
+// * proposal
+pub fn candidates() -> IndexedMap<'static, &'static Addr, Addr, CandidatesIndexes<'static>> {
+    let indexes = CandidatesIndexes {
+        proposal: UniqueIndex::new(|proposal| proposal.clone(), "candidates__proposal"),
+    };
+    IndexedMap::new("candidates", indexes)
+}
 
 pub const AWAITING_INITIAL_RESPS: Item<u64> = Item::new("awaiting_initial_resps");

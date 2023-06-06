@@ -13,7 +13,7 @@ use cw_utils::parse_instantiate_response_data;
 use crate::{
     error::ContractError,
     msg::InstantiationData,
-    state::{AWAITING_INITIAL_RESPS, CANDIDATES, CONFIG},
+    state::{AWAITING_INITIAL_RESPS, CONFIG, candidates},
 };
 use proxy::msg::InstantiateMsg as ProxyInstantiateMsg;
 
@@ -149,7 +149,7 @@ pub fn proposal_instantiated(
     let owner: Addr = proposal::state::OWNER.query(&deps.querier, addr.clone())?;
 
     // new proposal new candidate
-    CANDIDATES.save(deps.storage, &owner, &addr)?;
+    candidates().save(deps.storage, &owner, &addr)?;
 
     let data = ProposalMemberData {
         owner_addr: owner.into(),

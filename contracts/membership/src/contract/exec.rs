@@ -13,7 +13,7 @@ use proxy::msg::InstantiateMsg as ProxyInstantiateMsg;
 use crate::{
     contract::{PROPOSAL_INSTANTIATION_REPLY_ID, PROPOSAL_PASS_REPLY_ID},
     error::ContractError,
-    state::{members, CANDIDATES, CONFIG},
+    state::{members, CONFIG, candidates},
 };
 
 pub fn propose_member(
@@ -41,7 +41,7 @@ pub fn propose_member(
     );
 
     ensure!(
-        !CANDIDATES.has(deps.storage, &addr),
+        !candidates().has(deps.storage, &addr),
         ContractError::ExistingProposalInProgress
     );
 
@@ -88,7 +88,7 @@ pub fn vote_member_proposal(
     );
 
     ensure!(
-        CANDIDATES.has(deps.storage, &info.sender),
+        candidates().idx.proposal.item(deps.storage, info.sender.clone())?.is_some(),
         ContractError::NotProposedMember
     );
 
@@ -142,11 +142,11 @@ pub fn new_member(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response
     let proposal_owner = proposal::state::OWNER.query(&deps.querier, proposal_addr.clone())?;
 
     ensure!(
-        CANDIDATES.has(deps.storage, &proposal_owner),
+        candidates().has(deps.storage, &proposal_owner),
         ContractError::NotProposedMember
     );
 
-    CANDIDATES.remove(deps.storage, &proposal_addr);
+    candidates().remove(deps.storage, &proposal_owner)?;
 
     let config = CONFIG.load(deps.storage)?;
 
